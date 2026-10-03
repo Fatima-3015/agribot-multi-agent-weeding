@@ -1,0 +1,8 @@
+# Packages needed to run the full pipeline on a laptop (not needed for the Streamlit app)
+stable-baselines3
+gymnasium
+pybullet
+numpy
+imageio
+imageio-ffmpeg
+streamlit

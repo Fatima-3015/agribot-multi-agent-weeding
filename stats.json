@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-10-03 20:14",
+  "controller": "PPO",
+  "team": {
+    "n_robots": 2,
+    "steps": 242,
+    "weeds_removed": 12,
+    "total_weeds": 12,
+    "weeds_left": 0,
+    "completed": true,
+    "crop_touches": 0,
+    "per_robot": [
+      {
+        "robot": "Robot 1 (blue)",
+        "weeds_removed": 5,
+        "crop_touches": 0,
+        "crop_contact_steps": 0
+      },
+      {
+        "robot": "Robot 2 (orange)",
+        "weeds_removed": 7,
+        "crop_touches": 0,
+        "crop_contact_steps": 0
+      }
+    ]
+  },
+  "baseline": {
+    "n_robots": 1,
+    "steps": 263,
+    "weeds_removed": 12,
+    "total_weeds": 12,
+    "weeds_left": 0,
+    "completed": true,
+    "crop_touches": 0,
+    "per_robot": [
+      {
+        "robot": "Robot",
+        "weeds_removed": 12,
+        "crop_touches": 0,
+        "crop_contact_steps": 0
+      }
+    ]
+  },
+  "metrics": {
+    "manual_labour_minutes_equivalent": 24.0,
+    "manual_labour_cost_pkr_equivalent": 100.0,
+    "estimated_crop_loss_pkr": 0,
+    "baseline_single_robot_steps": 263,
+    "time_saved_vs_single_robot_pct": 8.0,
+    "assumptions": {
+      "manual_minutes_per_weed": 2.0,
+      "labour_rate_pkr_per_hour": 250,
+      "crop_loss_pkr_per_touch": 50
+    }
+  },
+  "report": "## Mission Summary\n- The 2 autonomous weeding robots successfully completed the mission using the PPO controller.\n- They removed all 12 weeds (12 out of 12) in 242 steps, leaving 0 weeds.\n\n## Robot Performance\n- Robot 1 (blue) removed 5 weeds.\n- Robot 2 (orange) removed 7 weeds.\n- The team saved 8.0% time compared to the single-robot baseline of 263 steps.\n\n## Crop Safety\n- There were 0 crop touches recorded during the mission.\n- All 16 crop plants remained completely safe.\n\n## Business Impact\n- *Note: These metrics are estimates based on assumptions (2.0 minutes per weed, 250 PKR/hour labor rate, and 50 PKR/touch crop loss).*\n- Saved an estimated 24.0 minutes of manual labor.\n- Saved an estimated 100.0 PKR in labor costs, with 0 PKR estimated crop loss.\n\n## Recommendations\n- Continue using the PPO controller for high weeding efficiency.\n- Deploy 2-robot teams to maintain the 8.0% time savings over single robots.\n- Keep current safety parameters as they resulted in zero crop damage.\n\n## Khulasa\nDo robots ne kamyabi se tamam 12 jariyaan saaf keen aur fasal ko koi nuksan nahi pohanchaya.\nIs technology ki madad se waqt aur paise ki bachat hui hai.",
+  "report_source": "gemini-3.5-flash",
+  "alerts": [
+    {
+      "type": "mission_report",
+      "subject": "Weeding mission complete: 12/12 weeds removed",
+      "sent": true,
+      "detail": "sent to fatimamahmood3015@gmail.com"
+    }
+  ]
+}
