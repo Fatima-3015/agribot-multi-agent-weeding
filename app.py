@@ -44,6 +44,8 @@ CSS = """
 .live-badge {display:inline-block; background:#e53935; color:#fff; padding:.15rem .6rem;
              border-radius:999px; font-size:.72rem; font-weight:700; margin-left:.5rem;
              vertical-align:middle;}
+.livecount {background:#ffffff; border-radius:12px; padding:.7rem 1rem; text-align:center;
+            box-shadow:0 2px 8px rgba(0,0,0,.06); font-size:1.05rem;}
 .foot {color:#6b7b6b; font-size:.82rem; margin-top:2rem; text-align:center;}
 </style>
 """
@@ -88,8 +90,10 @@ k4.markdown(kpi(f"{saved}%" if saved is not None else "n/a", "Faster than 1 robo
 # =====================================================================
 FIELD_SIZE = 4
 WEED_REACH = 0.5
-MAX_LIVE_STEPS = 600
-FRAME_EVERY = 6          # send a new frame to the browser every N physics steps
+CROP_AVOID_DIST = 0.7
+MAX_SPEED = 10
+MAX_LIVE_STEPS = 3000
+FRAME_EVERY = 10          # send a new frame to the browser every N physics steps
 
 ROBOT_URDF = """
 <robot name="weeder_robot">
@@ -167,20 +171,45 @@ def _build_field():
     return crop_positions, weed_ids, weed_pos
 
 
-def _drive_towards(robot_id, target_xy):
-    """Simple live-demo controller: steer one robot toward a target point.
-    (Swap this for model.predict(obs) if you upload a trained PPO model
-    alongside the app, to make the live run match the real PPO policy.)"""
+def _wrap_angle(a):
+    while a > math.pi:
+        a -= 2 * math.pi
+    while a < -math.pi:
+        a += 2 * math.pi
+    return a
+
+
+def _drive_towards(robot_id, target_xy, crop_positions):
+    """Same proven steering logic as the working single-robot script:
+    head toward the target, slow down while turning, and gently steer
+    away from crops that are too close (keeps the robot from getting
+    wedged against a crop collider)."""
     pos, orn = p.getBasePositionAndOrientation(robot_id)
     rx, ry = pos[0], pos[1]
     yaw = p.getEulerFromQuaternion(orn)[2]
     tx, ty = target_xy
-    ang = math.atan2(ty - ry, tx - rx) - yaw
-    ang = (ang + math.pi) % (2 * math.pi) - math.pi
-    turn = max(-1.0, min(1.0, 2.0 * ang))
-    forward = 1.0 if abs(ang) < 1.0 else 0.0
-    left = (forward - turn) * 8
-    right = (forward + turn) * 8
+
+    vx, vy = tx - rx, ty - ry
+    dist = math.hypot(vx, vy)
+    if dist > 1e-6:
+        vx, vy = vx / dist, vy / dist
+
+    for cx, cy in crop_positions:
+        dx, dy = rx - cx, ry - cy
+        d = math.hypot(dx, dy)
+        if 1e-6 < d < CROP_AVOID_DIST:
+            strength = (CROP_AVOID_DIST - d) / CROP_AVOID_DIST
+            vx += 2.5 * strength * dx / d
+            vy += 2.5 * strength * dy / d
+
+    err = _wrap_angle(math.atan2(vy, vx) - yaw)
+    turn = 5.0 * err
+    forward = 9.0 * max(0.0, math.cos(err)) ** 2
+    if abs(err) > 1.0:
+        forward = 0.0
+
+    left = max(-MAX_SPEED, min(MAX_SPEED, forward - turn))
+    right = max(-MAX_SPEED, min(MAX_SPEED, forward + turn))
     p.setJointMotorControl2(robot_id, 0, p.VELOCITY_CONTROL, targetVelocity=-left, force=5)
     p.setJointMotorControl2(robot_id, 1, p.VELOCITY_CONTROL, targetVelocity=-right, force=5)
     return rx, ry
@@ -201,75 +230,114 @@ def run_live_mission():
     robot_orange = _make_robot((0.95, 0.55, 0.10), (3, -3.5))   # Robot 2 — right zone
     crop_positions, weed_ids, weed_pos = _build_field()
 
-    view_matrix = p.computeViewMatrix([0, -7, 6], [0, 0, 0], [0, 0, 1])
-    proj_matrix = p.computeProjectionMatrixFOV(50, 1.33, 0.1, 20)
+    # clean top-down "map" camera instead of the angled checkerboard view
+    view_matrix = p.computeViewMatrix(
+        cameraEyePosition=[0, 0, 11],
+        cameraTargetPosition=[0, 0, 0],
+        cameraUpVector=[0, 1, 0],
+    )
+    proj_matrix = p.computeProjectionMatrixFOV(42, 16 / 9, 0.1, 20)
 
     removed = {"blue": 0, "orange": 0}
     total = len(weed_ids)
     step = 0
 
+    # IMPORTANT: each robot LOCKS onto one target weed and keeps chasing it
+    # until it is removed, instead of recomputing "nearest weed" every
+    # single step — recomputing every step can make the robot flicker
+    # between two equally-close weeds and never actually move (the bug
+    # that caused robots to get stuck near their spawn point).
+    current_target = {"blue": None, "orange": None}
+    stuck_check = {"blue": (0, (-3, -3.5)), "orange": (0, (3, -3.5))}   # (last_check_step, last_pos)
+    recovery_until = {"blue": 0, "orange": 0}
+
     def zone_weeds(x_min, x_max):
         return [w for w in weed_ids if x_min <= weed_pos[w][0] < x_max]
+
+    def pick_target(pos, zmin, zmax):
+        zw = zone_weeds(zmin, zmax)
+        if not zw:
+            return None
+        return min(zw, key=lambda w: (weed_pos[w][0] - pos[0]) ** 2 + (weed_pos[w][1] - pos[1]) ** 2)
 
     while weed_ids and step < MAX_LIVE_STEPS:
         for robot_id, key, (zmin, zmax) in (
             (robot_blue, "blue", (-FIELD_SIZE, 0)),
             (robot_orange, "orange", (0, FIELD_SIZE)),
         ):
-            zw = zone_weeds(zmin, zmax)
-            if not zw:
-                continue
             pos, _ = p.getBasePositionAndOrientation(robot_id)
-            target = min(zw, key=lambda w: (weed_pos[w][0] - pos[0]) ** 2 + (weed_pos[w][1] - pos[1]) ** 2)
-            rx, ry = _drive_towards(robot_id, weed_pos[target])
+            rx0, ry0 = pos[0], pos[1]
+
+            if step < recovery_until[key]:
+                # briefly back up and turn to break free if stuck
+                p.setJointMotorControl2(robot_id, 0, p.VELOCITY_CONTROL, targetVelocity=4, force=5)
+                p.setJointMotorControl2(robot_id, 1, p.VELOCITY_CONTROL, targetVelocity=-4, force=5)
+                continue
+
+            if current_target[key] is None or current_target[key] not in weed_ids:
+                current_target[key] = pick_target(pos, zmin, zmax)
+
+            target = current_target[key]
+            if target is None:
+                continue
+
+            rx, ry = _drive_towards(robot_id, weed_pos[target], crop_positions)
             if math.hypot(weed_pos[target][0] - rx, weed_pos[target][1] - ry) < WEED_REACH:
                 p.removeBody(target)
                 weed_ids.remove(target)
                 del weed_pos[target]
                 removed[key] += 1
+                current_target[key] = None   # pick a fresh target next loop
+
+            # stuck check every 150 steps: did this robot actually move?
+            last_step, (lx, ly) = stuck_check[key]
+            if step - last_step >= 150:
+                if math.hypot(rx0 - lx, ry0 - ly) < 0.1:
+                    recovery_until[key] = step + 60
+                stuck_check[key] = (step, (rx0, ry0))
 
         p.stepSimulation()
         step += 1
 
         if step % FRAME_EVERY == 0:
-            _, _, rgb, _, _ = p.getCameraImage(560, 380, view_matrix, proj_matrix)
-            frame = np.reshape(rgb, (380, 560, 4))[:, :, :3].astype(np.uint8)
+            _, _, rgb, _, _ = p.getCameraImage(900, 620, view_matrix, proj_matrix)
+            frame = np.reshape(rgb, (620, 900, 4))[:, :, :3].astype(np.uint8)
             frame_box.image(frame, caption=f"Live \u2014 step {step}", use_container_width=True)
-            r1_box.markdown(f"🔵 **Robot 1 (blue)**: {removed['blue']} removed")
-            r2_box.markdown(f"🟠 **Robot 2 (orange)**: {removed['orange']} removed")
-            total_box.markdown(f"🌱 **Total**: {removed['blue'] + removed['orange']}/{total}")
-            time.sleep(0.04)
+            r1_box.markdown(f'<div class="livecount">🔵 <b>Robot 1</b>: {removed["blue"]} removed</div>', unsafe_allow_html=True)
+            r2_box.markdown(f'<div class="livecount">🟠 <b>Robot 2</b>: {removed["orange"]} removed</div>', unsafe_allow_html=True)
+            total_box.markdown(f'<div class="livecount">🌱 <b>Total</b>: {removed["blue"] + removed["orange"]}/{total}</div>', unsafe_allow_html=True)
+            time.sleep(0.03)
 
     p.disconnect(client)
     return removed, total, step
 
 
-# ---------------- Mission replay (now LIVE) + robots panel ----------------
+# ---------------- Mission replay (now LIVE, full width) ----------------
 st.markdown(
     '<div class="sec">🎥 Mission replay <span class="live-badge">LIVE</span></div>',
     unsafe_allow_html=True)
-left, right = st.columns([3, 2])
+st.caption("This runs the simulation for real, right now on the server \u2014 it is not a "
+           "pre-recorded video. Weeds disappear live as each robot reaches them.")
 
-with left:
-    st.caption("This runs the simulation for real, right now on the server \u2014 it is not a "
-               "pre-recorded video. Weeds disappear live as each robot reaches them.")
-    if st.button("▶️ Run Live Simulation"):
-        live_removed, live_total, live_steps = run_live_mission()
-        st.success(f"✅ Live run finished: {live_removed['blue'] + live_removed['orange']}/{live_total} "
-                   f"weeds removed in {live_steps} steps.")
-    st.caption(f"Controller: {s['controller']}  |  Last recorded mission: {s['generated_at']}")
+if st.button("▶️ Run Live Simulation", use_container_width=False):
+    live_removed, live_total, live_steps = run_live_mission()
+    st.success(f"✅ Live run finished: {live_removed['blue'] + live_removed['orange']}/{live_total} "
+               f"weeds removed in {live_steps} steps.")
 
-with right:
-    st.markdown("**Last recorded mission** (from stats.json)")
+st.caption(f"Controller: {s['controller']}  |  Last recorded mission: {s['generated_at']}")
+
+# ---------------- Last recorded mission summary (below, not squeezed to the side) ----------------
+with st.expander("📋 Last recorded mission (from stats.json)"):
     colors = ["#1e66e5", "#f28c1b"]
-    for i, r in enumerate(team["per_robot"]):
-        st.markdown(
+    rcols = st.columns(len(team["per_robot"]))
+    for i, (col, r) in enumerate(zip(rcols, team["per_robot"])):
+        col.markdown(
             f'<div class="robot"><div class="n"><span class="dot" style="background:{colors[i % 2]}"></span>'
             f'{r["robot"]}</div><div class="s">🌿 {r["weeds_removed"]} weeds removed &nbsp;|&nbsp; '
             f'⚠️ {r["crop_touches"]} crop touches</div></div>',
             unsafe_allow_html=True)
     if baseline:
-        st.markdown("**1 robot vs 2 robots**")
+        st.markdown("**1 robot vs 2 robots (steps to clear the field)**")
         df = pd.DataFrame({"Steps": [baseline["steps"], team["steps"]]},
                           index=["1 robot", "2 robots"])
         st.bar_chart(df, color="#43a047", height=220)
