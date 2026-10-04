@@ -1,4 +1,4 @@
 streamlit
+numpy==1.26.4
 pandas
-numpy
 pybullet==3.2.6
