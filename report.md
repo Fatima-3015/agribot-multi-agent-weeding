@@ -1,26 +1,28 @@
 ## Mission Summary
-- The 2 autonomous weeding robots successfully completed the mission using the PPO controller.
-- They removed all 12 weeds (12 out of 12) in 242 steps, leaving 0 weeds.
+The mission was completed successfully using 2 autonomous robots. They cleared all 12 weeds from the field containing 16 crop plants in 230 steps.
 
 ## Robot Performance
 - Robot 1 (blue) removed 5 weeds.
 - Robot 2 (orange) removed 7 weeds.
-- The team saved 8.0% time compared to the single-robot baseline of 263 steps.
+- The Supervisor Agent made 5 corrections to keep the robots on track.
+- Note: A fault was deliberately injected into Robot 2 as a test to verify the supervisor's response.
+- Corrections were made due to robots driving away from weeds, steering errors, and getting too close to crops.
 
 ## Crop Safety
-- There were 0 crop touches recorded during the mission.
-- All 16 crop plants remained completely safe.
+- The robots maintained 100% safety.
+- There were 0 crop touches recorded during the entire mission.
 
 ## Business Impact
-- *Note: These metrics are estimates based on assumptions (2.0 minutes per weed, 250 PKR/hour labor rate, and 50 PKR/touch crop loss).*
-- Saved an estimated 24.0 minutes of manual labor.
-- Saved an estimated 100.0 PKR in labor costs, with 0 PKR estimated crop loss.
+*These figures are estimates based on our business assumptions:*
+- We saved 12.5% in time compared to using a single robot.
+- The work performed is equivalent to 24 minutes of manual labor.
+- The estimated cost equivalent of this manual labor is 100 PKR.
+- Estimated crop loss is 0 PKR.
 
 ## Recommendations
-- Continue using the PPO controller for high weeding efficiency.
-- Deploy 2-robot teams to maintain the 8.0% time savings over single robots.
-- Keep current safety parameters as they resulted in zero crop damage.
+- Continue using the PPO controller as it successfully cleared all weeds without damaging crops.
+- Maintain the supervisor agent, as it was essential in correcting navigation errors and handling the injected fault.
+- Monitor the robots' tendency to get too close to crops to further improve path efficiency.
 
 ## Khulasa
-Do robots ne kamyabi se tamam 12 jariyaan saaf keen aur fasal ko koi nuksan nahi pohanchaya.
-Is technology ki madad se waqt aur paise ki bachat hui hai.
+Dono robots ne kamyabi se 12 weeds khatam kiye aur kisi fasal ko nuqsan nahi pohancha. Supervisor ne 5 dafa robots ki rehnumai ki taake kaam theek se ho sake.

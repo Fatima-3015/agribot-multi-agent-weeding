@@ -79,6 +79,9 @@ def _prompt(team, metrics, controller):
         "- The business metrics are based on ASSUMPTIONS (listed in the JSON); say "
         "clearly that they are estimates.\n"
         "- If time_saved_vs_single_robot_pct is null, do not mention it.\n"
+        "- team_result.supervisor describes the Supervisor Agent (a third robot that watches the "
+        "workers and corrects them). Mention how many corrections it made and why. If "
+        "fault_injected is true, say clearly that a fault was deliberately injected as a test.\n"
         "- Use simple markdown: '##' headings and '-' bullets, no tables.\n"
         "- Sections: Mission Summary, Robot Performance, Crop Safety, Business Impact, "
         "Recommendations (3 bullets).\n"
@@ -118,6 +121,10 @@ def _template_report(team, metrics):
     if metrics["time_saved_vs_single_robot_pct"] is not None:
         lines.append(f"- Two robots were {metrics['time_saved_vs_single_robot_pct']}% faster than one robot.")
     lines += [
+        "## Supervisor",
+        f"- Supervisor corrections: {team.get('supervisor', {}).get('interventions', 0)}"
+        + (" (a fault was deliberately injected as a test)."
+           if team.get("supervisor", {}).get("fault_injected") else "."),
         "## Crop Safety",
         f"- Total crop touches: {team['crop_touches']}.",
         "## Business Impact (estimates based on assumptions)",

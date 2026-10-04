@@ -1,9 +1,10 @@
 {
-  "generated_at": "2026-10-04 12:43",
+  "generated_at": "2026-10-04 12:59",
   "controller": "PPO",
+  "fault_test": true,
   "team": {
     "n_robots": 2,
-    "steps": 242,
+    "steps": 230,
     "weeds_removed": 12,
     "total_weeds": 12,
     "weeds_left": 0,
@@ -22,7 +23,58 @@
         "crop_touches": 0,
         "crop_contact_steps": 0
       }
-    ]
+    ],
+    "supervisor": {
+      "interventions": 5,
+      "events": [
+        {
+          "robot": 0,
+          "robot_name": "Robot 1 (blue)",
+          "start": 9,
+          "end": 55,
+          "reason": "driving away from its weed",
+          "injected": false
+        },
+        {
+          "robot": 1,
+          "robot_name": "Robot 2 (orange)",
+          "start": 44,
+          "end": 86,
+          "reason": "steering the wrong way",
+          "injected": true
+        },
+        {
+          "robot": 1,
+          "robot_name": "Robot 2 (orange)",
+          "start": 92,
+          "end": 104,
+          "reason": "too close to a crop",
+          "injected": false
+        },
+        {
+          "robot": 0,
+          "robot_name": "Robot 1 (blue)",
+          "start": 98,
+          "end": 205,
+          "reason": "too close to a crop",
+          "injected": false
+        },
+        {
+          "robot": 1,
+          "robot_name": "Robot 2 (orange)",
+          "start": 161,
+          "end": 209,
+          "reason": "too close to a crop",
+          "injected": false
+        }
+      ],
+      "fault_injected": true,
+      "fault": {
+        "robot": 1,
+        "start": 40,
+        "end": 75
+      }
+    }
   },
   "baseline": {
     "n_robots": 1,
@@ -46,15 +98,15 @@
     "manual_labour_cost_pkr_equivalent": 100.0,
     "estimated_crop_loss_pkr": 0,
     "baseline_single_robot_steps": 263,
-    "time_saved_vs_single_robot_pct": 8.0,
+    "time_saved_vs_single_robot_pct": 12.5,
     "assumptions": {
       "manual_minutes_per_weed": 2.0,
       "labour_rate_pkr_per_hour": 250,
       "crop_loss_pkr_per_touch": 50
     }
   },
-  "report": "## Mission Summary\n- The 2-robot team successfully completed the weeding mission in 242 steps using the PPO controller.\n- All 12 weeds were removed from the field of 16 crop plants, leaving 0 weeds behind.\n\n## Robot Performance\n- Robot 1 (blue) removed 5 weeds.\n- Robot 2 (orange) removed 7 weeds.\n- The 2-robot team saved 8.0% time compared to the single-robot baseline of 263 steps.\n\n## Crop Safety\n- Both robots recorded 0 crop touches and 0 crop contact steps.\n- Crop damage was avoided completely, resulting in PKR 0 estimated crop loss.\n\n## Business Impact\n*Note: These metrics are estimates based on assumptions of 2.0 minutes of manual labor per weed, a labor rate of PKR 250 per hour, and PKR 50 loss per crop touch.*\n- The mission saved an estimated 24.0 minutes of manual labor.\n- This equates to an estimated manual labor cost savings of PKR 100.0.\n\n## Recommendations\n- Continue using the PPO controller for autonomous weeding to maintain high efficiency.\n- Deploy the 2-robot team configuration to consistently achieve the 8.0% time savings.\n- Maintain the current safety calibration to ensure zero crop contact and zero financial loss.\n\n## Khulasa\nDo robots ne mil kar khet se saare 12 weeds ka safaya mukammal kiya bina kisi fasal ko nuksan pohnchaye.\nPPO controller aur robots ki behtareen karkardagi se waqt aur mazdoori ke kharchay ki bachat hui.",
-  "report_source": "gemini-3.5-flash",
+  "report": "## Mission Summary\nThe mission was completed successfully using 2 autonomous robots. They cleared all 12 weeds from the field containing 16 crop plants in 230 steps.\n\n## Robot Performance\n- Robot 1 (blue) removed 5 weeds.\n- Robot 2 (orange) removed 7 weeds.\n- The Supervisor Agent made 5 corrections to keep the robots on track.\n- Note: A fault was deliberately injected into Robot 2 as a test to verify the supervisor's response.\n- Corrections were made due to robots driving away from weeds, steering errors, and getting too close to crops.\n\n## Crop Safety\n- The robots maintained 100% safety.\n- There were 0 crop touches recorded during the entire mission.\n\n## Business Impact\n*These figures are estimates based on our business assumptions:*\n- We saved 12.5% in time compared to using a single robot.\n- The work performed is equivalent to 24 minutes of manual labor.\n- The estimated cost equivalent of this manual labor is 100 PKR.\n- Estimated crop loss is 0 PKR.\n\n## Recommendations\n- Continue using the PPO controller as it successfully cleared all weeds without damaging crops.\n- Maintain the supervisor agent, as it was essential in correcting navigation errors and handling the injected fault.\n- Monitor the robots' tendency to get too close to crops to further improve path efficiency.\n\n## Khulasa\nDono robots ne kamyabi se 12 weeds khatam kiye aur kisi fasal ko nuqsan nahi pohancha. Supervisor ne 5 dafa robots ki rehnumai ki taake kaam theek se ho sake.",
+  "report_source": "gemini-3.1-flash-lite",
   "alerts": [
     {
       "type": "mission_report",
